@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # 1. Amazon S3 の代わり (MinIO)
+  minio:
+    image: minio/minio
+    container_name: minio-s3-emulator
+    ports:
+      - "9000:9000" # API用
+      - "9001:9001" # 管理画面用
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin_password
+    volumes:
+      - ./data/minio:/data
+    command: server /data --console-address ":9001"
+
+  # 2. Apache NiFi
+  nifi:
+    image: apache/nifi:latest
+    container_name: nifi-core
+    ports:
+      - "8443:8443"
+    environment:
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=nifi_password_123456789
+    volumes:
+      # ホストの ./data/custom-lib を コンテナの /opt/nifi/nifi-current/custom-lib につなぐ
+      - ./data/custom-lib:/opt/nifi/nifi-current/custom-lib
+      # 👇 これを追記：フローの設定ファイルをMac側に保存するようにします
+      - ./data/nifi-conf:/opt/nifi/nifi-current/conf
+    # 3. 分析用データベースの代わり (PostgreSQL)
+    # Snowflakeへの連携前のデータ格納や、SQLの練習用
+  db:
+    image: postgres:15
+    container_name: local-database
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: training_db
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
